@@ -14,8 +14,10 @@ class HashTable:
     '''
     def __init__(self, capacity):
         self.capacity = capacity  # Number of buckets in the hash table
+        self.initial_capacity = capacity
         self.storage = [None] * capacity
         self.size = 0
+
 
 
     def _hash(self, key):
@@ -36,6 +38,7 @@ class HashTable:
         hash_value = 5381
         for char in key:
             hash_value = ((hash_value << 5) + hash_value) + ord(char)
+        return hash_value
 
 
     def _hash_mod(self, key):
@@ -43,7 +46,7 @@ class HashTable:
         Take an arbitrary key and return a valid integer index
         within the storage capacity of the hash table.
         '''
-        return self._hash(key) % self.capacity
+        return self._hash_djb2(key) % self.capacity
 
 
     def insert(self, key, value):
@@ -51,8 +54,6 @@ class HashTable:
         Store the value with the given key.
 
         Hash collisions should be handled with Linked List Chaining.
-
-        Fill this in.
         '''
         index = self._hash_mod(key)
         node = self.storage[index]
@@ -68,6 +69,9 @@ class HashTable:
                 node = node.next
             prev.next = LinkedPair(key, value)
             self.size += 1
+        
+        if self.size / self.capacity > 0.7:
+            self.resize()
 
 
     def remove(self, key):
@@ -75,9 +79,8 @@ class HashTable:
         Remove the value stored with the given key.
 
         Print a warning if the key is not found.
-
-        Fill this in.
         '''
+        removed = False
         index = self._hash_mod(key)
         node = self.storage[index]
         prev = None
@@ -87,10 +90,16 @@ class HashTable:
                     prev.next = node.next
                 else:
                     self.storage[index] = node.next
-                return
+                removed = True
+                self.size -= 1
+                break
             prev = node
             node = node.next
-        print(f'Error: no entry with key "{key}" was found.')
+        if removed:
+            if self.size / self.capacity < 0.2 and self.capacity > self.initial_capacity:
+                self.resize(rate=0.5)
+        else:
+            print(f'Error: no entry for "{key}" was found.')
 
 
     def retrieve(self, key):
@@ -98,8 +107,6 @@ class HashTable:
         Retrieve the value stored with the given key.
 
         Returns None if the key is not found.
-
-        Fill this in.
         '''
         node = self.storage[self._hash_mod(key)]
         while node:
@@ -109,28 +116,20 @@ class HashTable:
         return None
 
 
-    def resize(self):
+    def resize(self, rate=2):
         '''
-        Doubles the capacity of the hash table and
-        rehash all key/value pairs.
+        Double or halve the capacity of the
+        hash table and rehash all key/value pairs.
+        '''
+        self.capacity = int(rate * self.capacity)
+        self.size = 0
+        old_storage = self.storage
+        self.storage = [None] * self.capacity
 
-        Fill this in.
-        '''
-        self.capacity *= 2
-        new_storage = [None] * self.capacity
-        for node in self.storage:
+        for node in old_storage:
             while node:
-                index = self._hash_mod(node.key)
-                new_list_node = new_storage[index]
-                if new_list_node is None:
-                    new_storage[index] = LinkedPair(node.key, node.value)
-                else:
-                    while new_list_node:
-                        prev = new_list_node
-                        new_list_node = new_list_node.next
-                    prev.next = LinkedPair(node.key, node.value)
+                self.insert(node.key, node.value)
                 node = node.next
-        self.storage = new_storage
 
 
 if __name__ == "__main__":
@@ -158,5 +157,6 @@ if __name__ == "__main__":
     print(ht.retrieve("line_1"))
     print(ht.retrieve("line_2"))
     print(ht.retrieve("line_3"))
+
 
     print("")
